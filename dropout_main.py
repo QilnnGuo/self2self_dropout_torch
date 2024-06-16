@@ -22,9 +22,9 @@ from MLE.model import Dropout_Unet
 import signal
 import multiprocessing
 
-def train_model(path, file_name, model, optimizer, criterion, noise_lvl, mask_ratio, num_epochs, device='cuda:1', gray=False, average=False):
-    
-    sys.stdout = open(f'Dropout/{noise_lvl}_{file_name[:-4]}_{average}.txt', 'w', buffering=1)
+def train_model(path, file_name, model, optimizer, criterion, noise_lvl, mask_ratio, num_epochs, device='cuda:1', gray=False, average=False, exp = 'exp'):
+    os.makedirs(f'Dropout/{exp}', exist_ok=True)
+    sys.stdout = open(f'Dropout/{exp}/{noise_lvl}_{file_name[:-4]}_{average}.txt', 'w', buffering=1)
     print('------------------------------------------------------------')
     print('noise level: {}'.format(noise_lvl))
     print('file name: {}'.format(file_name))
@@ -35,7 +35,7 @@ def train_model(path, file_name, model, optimizer, criterion, noise_lvl, mask_ra
     print('------------------------------------------------------------')
     file_path = os.path.join(path, file_name)
     image = read_image(file_path, device=device, gray=gray)
-    noisy_image = add_noise(image, noise_lvl)
+    noisy_image = add_noise(image, noise_lvl, device=device)
     vertical_flip = RandomVerticalFlipWithState(1/3)
     horizontal_flip = RandomHorizontalFlipWithState(1/3)
     transform = transforms.Compose([
@@ -50,9 +50,9 @@ def train_model(path, file_name, model, optimizer, criterion, noise_lvl, mask_ra
         aug_image = transform(noisy_image)
         flip_state_1 = vertical_flip.flipped
         flip_state_2 = horizontal_flip.flipped
-        mask_image, mask = add_mask(aug_image, mask_ratio)
+        mask_image, mask = add_mask(aug_image, mask_ratio, device=device)
         if average:
-            mask_image = average_masked_image(mask_image, mask)
+            mask_image = average_masked_image(mask_image, mask, device=device)
         optimizer.zero_grad()
         output = model(mask_image)
         #cnt_nonzero = torch.count_nonzero(1-mask)
@@ -74,9 +74,9 @@ def train_model(path, file_name, model, optimizer, criterion, noise_lvl, mask_ra
                 aug_image = transform(noisy_image)
                 flip_state_1 = vertical_flip.flipped
                 flip_state_2 = horizontal_flip.flipped
-                mask_image, mask = add_mask(aug_image, mask_ratio)
+                mask_image, mask = add_mask(aug_image, mask_ratio, device=device)
                 if average:
-                    mask_image = average_masked_image(mask_image, mask)
+                    mask_image = average_masked_image(mask_image, mask, device=device)
                 output_pred = model(mask_image)
                 if flip_state_1:
                     output_pred= output_pred.flip(1)
@@ -84,13 +84,13 @@ def train_model(path, file_name, model, optimizer, criterion, noise_lvl, mask_ra
                     output_pred = output_pred.flip(2)
                 avg += output_pred/T
 
-            if calculate_psnr(image, sum) > best_psnr:
-                best_psnr = calculate_psnr(image, sum)
+            if calculate_psnr(image, avg) > best_psnr:
+                best_psnr = calculate_psnr(image, avg)
                 best_image = avg
     
     with torch.no_grad():
-        save_image(best_image, 'Dropout/{}_best_image_{}_{}.png'.format(noise_lvl,file_name[:-4],average))
-        save_image(noisy_image, 'Dropout/{}_noisy_image_{}_{}.png'.format(noise_lvl,file_name[:-4],average))
+        save_image(best_image, 'Dropout/{}/{}_best_image_{}_{}.png'.format(exp,noise_lvl,file_name[:-4],average))
+        save_image(noisy_image, 'Dropout/{}/{}_noisy_image_{}_{}.png'.format(exp,noise_lvl,file_name[:-4],average))
         print('------------------------------------------------------------')
         print('best image saved, Total samples: {}'.format(T))
         print('best psnr: {:.4f}'.format(best_psnr))
@@ -99,12 +99,16 @@ def train_model(path, file_name, model, optimizer, criterion, noise_lvl, mask_ra
 
     return best_psnr, calculate_ssim(image, best_image)
 
-def worker(path, file, noise, mask_ratio, num_epochs, device, gray, average):
+def worker(path, file, noise, mask_ratio, num_epochs, device, gray, average, exp='exp'):
+    if gray:
+        channels = 1
+    else:
+        channels = 3
     model = Dropout_Unet(channels, rate = 0.3)
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
     criterion = nn.MSELoss()
-    best_psnr, ssim = train_model(path, file, model, optimizer, criterion, noise, mask_ratio, num_epochs, device, gray, average)
+    best_psnr, ssim = train_model(path, file, model, optimizer, criterion, noise, mask_ratio, num_epochs, device, gray, average, exp)
     return best_psnr, ssim
 
 # Create a global Pool object
@@ -122,13 +126,14 @@ if __name__ == '__main__':
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     path = '../Dataset/trainset'
     file_name = os.listdir('../Dataset/trainset')
-    channels = 3
     num_epochs = 150000
     noise_lvl = [25, 50]
     mask_ratio = 0.3
     gray = False
     average = True
+    exp = 'exp2'
     print('------------------------------------------------------------')
+    print('Experiment: {}'.format(exp))
     print('device: {}'.format(device))
     print('average: {}'.format(average))
     print('gray: {}'.format(gray))
@@ -141,7 +146,7 @@ if __name__ == '__main__':
         print('------------------------------------------------------------')
         multiprocessing.set_start_method('spawn')
         with multiprocessing.Pool(4) as pool:
-            results = pool.starmap(worker, [(path, file, noise, mask_ratio, num_epochs, device, gray, average) for file in file_name])
+            results = pool.starmap(worker, [(path, file, noise, mask_ratio, num_epochs, device, gray, average, exp) for file in file_name])
         average_psnr = sum([psnr for psnr, ssim in results])/len(results)
         average_ssim = sum([ssim for psnr, ssim in results])/len(results)
         print('Average PSNR:', average_psnr)
