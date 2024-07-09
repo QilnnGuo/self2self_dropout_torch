@@ -7,7 +7,7 @@ def add_noise(image, noise_level, device='cuda:1'):#image float tensor
     noise =  torch.randn(image.size()) * noise_level/255
     noise = noise.to(device)
     noisy_image = image + noise
-    noisy_image = torch.clip(noisy_image, 0, 1)
+    #noisy_image = torch.clip(noisy_image, 0, 1)
     return noisy_image.to(device)
 
 def add_mask(image, mask_ratio, device='cuda:1'):
@@ -18,7 +18,7 @@ def add_mask(image, mask_ratio, device='cuda:1'):
     masked_image = image * mask
     return masked_image, mask
 
-def read_image(image_path, transform=transforms.ToTensor(), device='cuda:1', gray=True):
+def read_image(image_path, transform=transforms.ToTensor(), device='cuda:1', gray=False):
     if gray:
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     else:
