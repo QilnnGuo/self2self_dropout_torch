@@ -58,7 +58,7 @@ def train_model(average, Gamma, step_size, path, file_name, model, optimizer, cr
         mask_image, mask = add_mask(aug_image, mask_ratio, device=device)
         optimizer.zero_grad()
         output = model(mask_image, mask)
-        #cnt_nonzero = torch.count_nonzero(1-mask)
+        cnt_nonzero = torch.count_nonzero(1-mask)
         loss = criterion(output*(1-mask), aug_image*(1-mask))
         if average:
             loss/=cnt_nonzero#/cnt_nonzero*noisy_image.size(2)*noisy_image.size(3)
