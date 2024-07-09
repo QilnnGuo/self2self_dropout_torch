@@ -200,7 +200,7 @@ class PartialConv(nn.Module):
             param.requires_grad = False
         
     def forward(self, input, mask):
-        input = F.pad(input, (1,1,1,1), mode='reflect')
+        input = F.pad(input, (1,1,1,1), mode ='constant', value=0)#mode='reflect')
         mask = F.pad(mask, (1,1,1,1), mode='constant', value=0)#zero_padding
 
         output = self.input_conv(input * mask)
@@ -257,8 +257,8 @@ class PartialEncoder(nn.Module):
         self.leaky_relu = nn.LeakyReLU(0.1)
 
     def forward(self, x, mask):
-        x = F.pad(x, (1, 1, 1, 1), mode='reflect')  # tf.pad with "SYMMETRIC" corresponds to 'reflect' mode in PyTorch
-        mask = F.pad(mask, (1, 1, 1, 1), mode='constant', value=1)  # tf.pad with "CONSTANT" and constant_values=1
+        x = F.pad(x, (1, 1, 1, 1), mode='constant', value = 0) #mode='reflect')  # tf.pad with "SYMMETRIC" corresponds to 'reflect' mode in PyTorch
+        mask = F.pad(mask, (1, 1, 1, 1), mode='constant', value=0)#=1)  # tf.pad with "CONSTANT" and constant_values=1
         x, mask = self.Pconv(x, mask)
         #print(mask.shape)
         x = self.leaky_relu(x)
@@ -277,8 +277,8 @@ def custom_weights_init(layer, gain=2):
 class PartialDecoder(nn.Module):
     def __init__(self, in_, out_1, out_2, p = 0.3):
         super().__init__()
-        self.conv1 = nn.Conv2d(in_, out_1, 3, 1, 1, padding_mode='reflect')
-        self.conv2 = nn.Conv2d(out_1, out_2, 3, 1, 1, padding_mode='reflect')
+        self.conv1 = nn.Conv2d(in_, out_1, 3, 1, 1)#padding_mode='reflect')
+        self.conv2 = nn.Conv2d(out_1, out_2, 3, 1, 1)#padding_mode='reflect')
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
         self.leaky_relu = nn.LeakyReLU(0.1)
         self.dropout1 = nn.Dropout(p)
@@ -350,7 +350,7 @@ class PartialConvUnet(nn.Module):
 
         #I forgot this dropout layer
         self.final_conv = nn.Sequential(nn.Dropout(p),
-            nn.Conv2d(32, channel, 3, 1, 1, padding_mode='reflect'), 
+            nn.Conv2d(32, channel, 3, 1, 1),#padding_mode='reflect'), 
             nn.Sigmoid())
         
         self.final_conv[1].apply(lambda layer: custom_weights_init(layer, gain=1.0))
