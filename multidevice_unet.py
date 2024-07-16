@@ -85,7 +85,7 @@ def train_model(Gamma, step_size, path, file_name, model, optimizer, noise_lvl, 
         optimizer.zero_grad()
         output = model(mask_image, mask)
         cnt_nonzero = torch.count_nonzero(1-mask)
-        loss = torch.sum((output - aug_image)*(output - aug_image)*(1-mask))/cnt_nonzero
+        loss = torch.sum((output - aug_image)**2*(1-mask))/cnt_nonzero
         #we only have to divide by cnt_nonzero because the zero values are not counted in the loss
         loss.backward()
         optimizer.step()
