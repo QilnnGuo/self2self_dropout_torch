@@ -1,0 +1,71 @@
+nohup: ignoring input
+------------------------------------------------------------
+learning rate: 1e-05
+gamma:2000 1
+Experiment: exp_10
+device: cuda:3
+gray: False
+mask ratio: 0.3
+num epochs: 450000
+files: ['image_Lena512rgb.png', 'image_F16_512rgb.png', 'kodim02.png', 'image_House256rgb.png', 'image_Baboon512rgb.png', 'kodim01.png', 'image_Peppers512rgb.png', 'kodim03.png', 'kodim12.png']
+------------------------------------------------------------
+         noise level: 25
+------------------------------------------------------------
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+Average PSNR: tensor(31.5220, device='cuda:3')
+Average SSIM: tensor(0.8418, device='cuda:3')
+------------------------------------------------------------
+         noise level: 50
+------------------------------------------------------------
+Exception ignored in: <module 'threading' from '/home/qlguo/miniconda3/envs/Pytorch/lib/python3.8/threading.py'>
+Traceback (most recent call last):
+  File "/home/qlguo/miniconda3/envs/Pytorch/lib/python3.8/threading.py", line 1373, in _shutdown
+    assert tlock.locked()
+AssertionError: 
+Exception ignored in: <module 'threading' from '/home/qlguo/miniconda3/envs/Pytorch/lib/python3.8/threading.py'>
+Traceback (most recent call last):
+  File "/home/qlguo/miniconda3/envs/Pytorch/lib/python3.8/threading.py", line 1355, in _shutdown
+    def _shutdown():
+  File "/home/qlguo/Dropout/partialconv.py", line 125, in signal_handler
+    sys.exit(0)
+SystemExit: 0
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+Average PSNR: tensor(28.9723, device='cuda:3')
+Average SSIM: tensor(0.7793, device='cuda:3')
+------------------------------------------------------------
+         noise level: 75
+------------------------------------------------------------
+Exception ignored in: <module 'threading' from '/home/qlguo/miniconda3/envs/Pytorch/lib/python3.8/threading.py'>
+Traceback (most recent call last):
+  File "/home/qlguo/miniconda3/envs/Pytorch/lib/python3.8/threading.py", line 1355, in _shutdown
+    def _shutdown():
+  File "/home/qlguo/Dropout/partialconv.py", line 125, in signal_handler
+    sys.exit(0)
+SystemExit: 0
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+Average PSNR: tensor(27.5796, device='cuda:3')
+Average SSIM: tensor(0.7373, device='cuda:3')
+------------------------------------------------------------
+         noise level: 100
+------------------------------------------------------------
+Exception ignored in: <module 'threading' from '/home/qlguo/miniconda3/envs/Pytorch/lib/python3.8/threading.py'>
+Traceback (most recent call last):
+  File "/home/qlguo/miniconda3/envs/Pytorch/lib/python3.8/threading.py", line 1373, in _shutdown
+    assert tlock.locked()
+AssertionError: 
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:15] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+Average PSNR: tensor(26.6652, device='cuda:3')
+Average SSIM: tensor(0.7098, device='cuda:3')
+------------------------------------------------------------
