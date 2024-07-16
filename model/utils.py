@@ -145,36 +145,3 @@ class RandomHorizontalFlipWithState():
             return img.flip(2)
         self.flipped = False
         return img
-    
-class Unet(nn.Module):
-    # ... your Unet implementation here ...
-    def __init__(self):
-        super(Unet, self).__init__()
-        # ... initialization code here ...
-        self.attention_gate = AttentionGate(in_channels, gating_channels, inter_channels)
-
-    def forward(self, x):
-        # ... forward pass for encoder here ...
-        x = self.attention_gate(g, x)
-        # ... forward pass for decoder here ...
-        return x
-    
-class SelfAttention(nn.Module):
-    def __init__(self, in_channels):
-        super(SelfAttention, self).__init__()
-        self.query_conv = nn.Conv2d(in_channels, in_channels//8, 1)
-        self.key_conv = nn.Conv2d(in_channels, in_channels//8, 1)
-        self.value_conv = nn.Conv2d(in_channels, in_channels, 1)
-        self.gamma = nn.Parameter(torch.zeros(1))
-
-    def forward(self, x):
-        batch_size, C, width, height = x.size()
-        query = self.query_conv(x).view(batch_size, -1, width*height).permute(0, 2, 1)
-        key = self.key_conv(x).view(batch_size, -1, width*height)
-        energy = torch.bmm(query, key)
-        attention = torch.softmax(energy, dim=-1)
-        value = self.value_conv(x).view(batch_size, -1, width*height)
-        out = torch.bmm(value, attention.permute(0, 2, 1))
-        out = out.view(batch_size, C, width, height)
-        out = self.gamma*out + x
-        return out
