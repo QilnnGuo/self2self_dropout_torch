@@ -17,21 +17,47 @@ import torch.multiprocessing as mp
 
 import sys
 
-from MLE.utils import RandomVerticalFlipWithState, RandomHorizontalFlipWithState, read_image, calculate_psnr, calculate_ssim, add_noise, add_mask, average_masked_image
+from model.utils import RandomVerticalFlipWithState, RandomHorizontalFlipWithState, read_image, calculate_psnr, calculate_ssim, add_noise, add_mask, average_masked_image
 import torch
 import torch.nn.functional as F
-from MLE.model import PartialConvUnet
+from model.model import PartialConvUnet
 import signal
 import multiprocessing
 import argparse
 
-def train_model(average, Gamma, step_size, path, file_name, model, optimizer, criterion, noise_lvl, mask_ratio, num_epochs, device='cuda:1', gray=False, exp = 'exp'):
+def train_model(Gamma, step_size, path, file_name, model, optimizer, noise_lvl, mask_ratio, num_epochs, device='cuda:1', gray=False, exp = 'exp'):
     os.makedirs(f'Dropout/{exp}', exist_ok=True)
     sys.stdout = open(f'Dropout/{exp}/{noise_lvl}_{file_name[:-4]}.txt', 'w', buffering=1)
     print('------------------------------------------------------------')
     print('noise level: {}'.format(noise_lvl))
     print('file name: {}'.format(file_name))
     print('mask ratio: {}'.format(mask_ratio))
+
+    if file_name == 'image_Baboon512rgb.png' or 'kodim01.png' :
+        if noise_lvl < 75:
+            pass
+        elif noise_lvl == 75:
+            num_epochs = 150000
+        else:
+            num_epochs = 50000
+    else:
+        if noise_lvl == 25:
+            pass
+        elif noise_lvl == 50:
+            num_epochs = 150000
+        elif noise_lvl == 75:
+            num_epochs = 100000
+        else:
+            num_epochs = 50000
+            
+        if file_name == 'image_House256rgb.png':
+            if noise_lvl == 25:
+                num_epochs = 70000
+            elif noise_lvl == 50:
+                num_epochs = 50000
+            else:
+                num_epochs = 30000
+      
     print('num epochs: {}'.format(num_epochs))
     print('gray: {}'.format(gray))
     print('------------------------------------------------------------')
@@ -59,13 +85,12 @@ def train_model(average, Gamma, step_size, path, file_name, model, optimizer, cr
         optimizer.zero_grad()
         output = model(mask_image, mask)
         cnt_nonzero = torch.count_nonzero(1-mask)
-        loss = criterion(output*(1-mask), aug_image*(1-mask))
-        if average:
-            loss/=cnt_nonzero#/cnt_nonzero*noisy_image.size(2)*noisy_image.size(3)
+        loss = torch.sum((output - aug_image)*(output - aug_image)*(1-mask))/cnt_nonzero
+        #we only have to divide by cnt_nonzero because the zero values are not counted in the loss
         loss.backward()
         optimizer.step()
         scheduler.step()
-        T = 50
+        T = 100
         with torch.no_grad():
             if i % 200 == 0:
                 if flip_state_1:
@@ -74,19 +99,21 @@ def train_model(average, Gamma, step_size, path, file_name, model, optimizer, cr
                     output = output.flip(2)
                 print('epoch: {}, loss: {}, psnr: {:.4f}, ssim: {}'.format(i, loss.item(), calculate_psnr(image, output), calculate_ssim(image, output)))   
 
-            if (i+1)%500 == 0:
+            if (i+1)%1000 == 0:
                 avg = torch.zeros_like(image)
                 for j in range(T):
-                    aug_image = transform(noisy_image)
-                    flip_state_1 = vertical_flip.flipped
-                    flip_state_2 = horizontal_flip.flipped
+                    aug_image = noisy_image#transform(noisy_image)
+                    flip_state_1 = vertical_flip.flipped*0
+                    flip_state_2 = horizontal_flip.flipped*0
                     mask_image, mask = add_mask(aug_image, mask_ratio, device=device)
                     output_pred = model(mask_image, mask)
                     if flip_state_1:
                         output_pred= output_pred.flip(1)
                     if flip_state_2:
                         output_pred = output_pred.flip(2)
-                    avg += output_pred/T
+                    avg += output_pred
+                    
+                avg /= T
 
                 if calculate_psnr(image, avg) > best_psnr:
                     best_psnr = calculate_psnr(image, avg)
@@ -105,19 +132,19 @@ def train_model(average, Gamma, step_size, path, file_name, model, optimizer, cr
 
     return best_psnr, calculate_ssim(image, best_image)
 
-def worker(average, Gamma, step_size, LR, path, file, noise, mask_ratio, num_epochs, device, gray, result_list, exp='exp'):
+def worker(Gamma, step_size, LR, path, file, noise, mask_ratio, num_epochs, device, gray, result_list, exp='exp'):
     if gray:
         channels = 1
     else:
         channels = 3
     model = PartialConvUnet(channels)
     model = model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=LR)# 1.5e-4)
-    criterion = nn.MSELoss()
-    best_psnr, ssim = train_model(average, Gamma, step_size, path, file, model, optimizer, criterion, noise, mask_ratio, num_epochs, device, gray, exp)
-    result_list.append((best_psnr, ssim))
+    optimizer = optim.Adam(model.parameters(), lr=LR)
+    best_psnr, ssim = train_model(Gamma, step_size, path, file, model, optimizer, noise, mask_ratio, num_epochs, device, gray, exp)
+    result_list.append((best_psnr.item() if isinstance(best_psnr, torch.Tensor) else best_psnr, 
+                        ssim.item() if isinstance(ssim, torch.Tensor) else ssim))
 
-'''
+
 # Create a global Pool object
 pool = None
 
@@ -129,13 +156,12 @@ def signal_handler(sig, frame):
 
 
 signal.signal(signal.SIGTERM, signal_handler)
-'''
+
 
 def main(args):
     dev_list = args.device.split(',')  # multiple device
     devices = ['cuda:{}'.format(dev) for dev in dev_list]
     
-    average = args.average
     LR = args.lr
     Gamma = args.gamma
     step_size = args.step_size
@@ -171,7 +197,7 @@ def main(args):
 
         for i, file in enumerate(file_name):
             device = devices[i % len(devices)]  # distribute files to devices
-            p = mp.Process(target=worker, args=(average, Gamma, step_size, LR, path, file, noise, mask_ratio, num_epochs, device, gray, result_list, exp))
+            p = mp.Process(target=worker, args=(Gamma, step_size, LR, path, file, noise, mask_ratio, num_epochs, device, gray, result_list, exp))
             p.start()
             processes.append(p)
 
@@ -192,8 +218,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate')
     parser.add_argument('--gamma', type=float, default=1, help='Gamma')
     parser.add_argument('--step_size', type=int, default=2000, help='Step size')
-    parser.add_argument('--epoch', type=int, default=450000, help='num_epochs')
-    parser.add_argument('--average', type=int, default=0, help='loss average')
+    parser.add_argument('--epoch', type=int, default=200, help='num_epochs')
     parser.add_argument('--exp', type=str, default='exp_multi_device', help='folder for experiment')
 
     args = parser.parse_args()
