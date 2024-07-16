@@ -1,35 +1,52 @@
-import os
-from pathlib import Path
-import cv2
-import torch
-from torchvision import transforms
-import matplotlib.pyplot as plt
-import numpy as np
-from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import os
+import cv2
+import matplotlib.pyplot as plt
 import torch.optim as optim
-import math
-from torchvision.utils import save_image
-
 import sys
-
-from MLE.utils import RandomVerticalFlipWithState, RandomHorizontalFlipWithState, read_image, calculate_psnr, calculate_ssim, add_noise, add_mask, average_masked_image
-import torch
-import torch.nn.functional as F
-from MLE.model import PartialConvUnet
 import signal
 import multiprocessing
 import argparse
 
+from torchvision import transforms
+from torchvision.utils import save_image
+from model.utils import add_mask, read_image, RandomVerticalFlipWithState, RandomHorizontalFlipWithState, add_noise, calculate_psnr, calculate_ssim
+from model.model import DnCNN
+
 def train_model(average, Gamma, step_size, path, file_name, model, optimizer, criterion, noise_lvl, mask_ratio, num_epochs, device='cuda:1', gray=False, exp = 'exp'):
     os.makedirs(f'Dropout/{exp}', exist_ok=True)
     sys.stdout = open(f'Dropout/{exp}/{noise_lvl}_{file_name[:-4]}.txt', 'w', buffering=1)
+    psnr = []
+    ssim = []
+    Loss = []
+    one_epoch_psnr = []
+    one_epoch_ssim = []
+    predicted_psnr = []
+    predicted_ssim = []
+    
     print('------------------------------------------------------------')
     print('noise level: {}'.format(noise_lvl))
     print('file name: {}'.format(file_name))
     print('mask ratio: {}'.format(mask_ratio))
+    if file_name == 'image_Baboon512rgb.png' or 'kodim01.png' :
+        if noise_lvl < 75:
+            pass
+        elif noise_lvl == 75:
+            num_epochs = 150000
+        else:
+            num_epochs = 50000
+    else:
+        if noise_lvl == 25:
+            pass
+        elif noise_lvl == 50:
+            num_epochs = 150000
+        elif noise_lvl == 75:
+            num_epochs = 100000
+        else:
+            num_epochs = 50000
+        
     print('num epochs: {}'.format(num_epochs))
     print('gray: {}'.format(gray))
     print('------------------------------------------------------------')
@@ -45,7 +62,7 @@ def train_model(average, Gamma, step_size, path, file_name, model, optimizer, cr
     best_psnr = 0
     save_epoch = 0
     best_image = None
-
+    #of no use
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=Gamma)
    
     for i in range(num_epochs):
@@ -55,9 +72,9 @@ def train_model(average, Gamma, step_size, path, file_name, model, optimizer, cr
         flip_state_2 = horizontal_flip.flipped
         mask_image, mask = add_mask(aug_image, mask_ratio, device=device)
         optimizer.zero_grad()
-        output = model(mask_image, mask)
-        #cnt_nonzero = torch.count_nonzero(1-mask)
-        loss = criterion(output*(1-mask), aug_image*(1-mask))
+        output = model(mask_image)
+        cnt_nonzero = torch.count_nonzero(1-mask)
+        loss = torch.sum((output - aug_image)**2*(1-mask))/cnt_nonzero
         if average:
             loss/=cnt_nonzero#/cnt_nonzero*noisy_image.size(2)*noisy_image.size(3)
         loss.backward()
@@ -65,31 +82,52 @@ def train_model(average, Gamma, step_size, path, file_name, model, optimizer, cr
         scheduler.step()
         T = 100
         with torch.no_grad():
+
+            if flip_state_1:
+                output= output.flip(1)
+            if flip_state_2:
+                output = output.flip(2)
+            psnr_val = calculate_psnr(image, output)
+            ssim_val = calculate_ssim(image, output)
+            psnr.append(psnr_val.item())
+            ssim.append(ssim_val.item())
+            Loss.append(loss.item())
+
             if i % 200 == 0:
-                if flip_state_1:
-                    output= output.flip(1)
-                if flip_state_2:
-                    output = output.flip(2)
-                print('epoch: {}, loss: {}, psnr: {:.4f}, ssim: {}'.format(i, loss.item(), calculate_psnr(image, output), calculate_ssim(image, output)))   
+                print('epoch: {}, loss: {}, psnr: {:.4f}, ssim: {}'.format(i, loss.item(), psnr_val, ssim_val))
 
             if (i+1)%500 == 0:
                 avg = torch.zeros_like(image)
                 for j in range(T):
-                    aug_image = transform(noisy_image)
-                    flip_state_1 = vertical_flip.flipped
-                    flip_state_2 = horizontal_flip.flipped
+                    aug_image = noisy_image#transform(noisy_image)
+                    flip_state_1 = vertical_flip.flipped*0
+                    flip_state_2 = horizontal_flip.flipped*0
                     mask_image, mask = add_mask(aug_image, mask_ratio, device=device)
-                    output_pred = model(mask_image, mask)
+                    output_pred = model(mask_image)
                     if flip_state_1:
                         output_pred= output_pred.flip(1)
                     if flip_state_2:
                         output_pred = output_pred.flip(2)
-                    avg += output_pred/T
+                    
+                    if i == 49999:
+                        pred_psnr = calculate_psnr(image, output_pred)
+                        pred_ssim = calculate_ssim(image, output_pred)
+                        one_epoch_psnr.append(pred_psnr.item())
+                        one_epoch_ssim.append(pred_ssim.item())
 
-                if calculate_psnr(image, avg) > best_psnr:
-                    best_psnr = calculate_psnr(image, avg)
+                    avg += output_pred
+                avg /= T
+
+                avg_psnr = calculate_psnr(image, avg)
+                avg_ssim = calculate_ssim(image, avg)
+                predicted_psnr.append(avg_psnr.item())
+                predicted_ssim.append(avg_ssim.item())
+
+                if avg_psnr > best_psnr:
+                    best_psnr = avg_psnr
                     best_image = avg
                     save_epoch = i
+                    print('saved at epoch: {}, best_psnr: {:.4f}, ssim: {}'.format(i,best_psnr, avg_ssim))
     
     with torch.no_grad():
         save_image(best_image, 'Dropout/{}/{}_best_image_{}.png'.format(exp,noise_lvl,file_name[:-4]))
@@ -101,6 +139,40 @@ def train_model(average, Gamma, step_size, path, file_name, model, optimizer, cr
         print('current ssim: {}'.format(calculate_ssim(image, best_image)))
         print('------------------------------------------------------------')
 
+    #plot psnr, ssim, predicted_psnr, predicted_ssim using plt.subplots
+    plt.figure(figsize=(10,10))
+    plt.subplot(2,2,1)
+    plt.plot(psnr)
+    plt.title('PSNR')
+    plt.subplot(2,2,2)
+    plt.plot(ssim)
+    plt.title('SSIM')
+    plt.subplot(2,2,3)
+    plt.plot(predicted_psnr)
+    #draw a vertical line at save_epoch
+    plt.axvline(x=(save_epoch+1)/500, color='r', linestyle='--')
+    plt.title('Predicted PSNR')
+    plt.subplot(2,2,4)
+    plt.plot(predicted_ssim)
+    #draw a vertical line at save_epoch
+    plt.axvline(x=(save_epoch+1)/500, color='r', linestyle='--')
+    plt.title('Predicted SSIM')
+    plt.savefig('Dropout/{}/{}_plot_{}.png'.format(exp,noise_lvl,file_name[:-4]))
+    plt.close()
+    #plot loss by epoch, 49999 epoch psnr, 49999 epoch ssim
+    plt.figure(figsize=(10,10))
+    plt.subplot(2,2,1)
+    plt.plot(Loss)
+    plt.title('Loss')
+    plt.subplot(2,2,2)
+    plt.bar(range(len(one_epoch_psnr)), one_epoch_psnr)
+    plt.title('49999 Epoch PSNR individual prediction')
+    plt.subplot(2,2,3)
+    plt.bar(range(len(one_epoch_ssim)), one_epoch_ssim)
+    plt.title('49999 Epoch SSIM individual prediction')
+    plt.savefig('Dropout/{}/{}_loss_plot_{}.png'.format(exp,noise_lvl,file_name[:-4]))
+    plt.close()
+
     return best_psnr, calculate_ssim(image, best_image)
 
 def worker(average, Gamma, step_size, LR, path, file, noise, mask_ratio, num_epochs, device, gray, exp='exp'):
@@ -108,10 +180,10 @@ def worker(average, Gamma, step_size, LR, path, file, noise, mask_ratio, num_epo
         channels = 1
     else:
         channels = 3
-    model = PartialConvUnet(channels)
+    model = DnCNN(channels, num_of_layers=17, num_of_features=64, dropout_prob=0.3)
     model = model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=LR)# 1.5e-4)
-    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=LR)
+    criterion = nn.MSELoss()#of no use
     best_psnr, ssim = train_model(average, Gamma, step_size, path, file, model, optimizer, criterion, noise, mask_ratio, num_epochs, device, gray, exp)
     return best_psnr, ssim
 
@@ -129,13 +201,13 @@ signal.signal(signal.SIGTERM, signal_handler)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameterize learning rate, gamma, and step size.')
     parser.add_argument('--device', type=int, default=3, help='device')
-    parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate')
+    parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--gamma', type=float, default=1, help='Gamma')
     parser.add_argument('--step_size', type=int, default=2000, help='Step size')
-    parser.add_argument('--epoch', type=int, default=450000, help='num_epochs')
+    parser.add_argument('--epoch', type=int, default=150000, help='num_epochs')
     parser.add_argument('--average', type=int, default=0, help='loss average')
     parser.add_argument('--exp', type=str, default='exp_new', help='folder for experiment')
-
+    parser.add_argument('--lvl', type=str, default='50,75,100', help='noise level')
 
     args = parser.parse_args()
 
@@ -143,16 +215,16 @@ if __name__ == '__main__':
     device = torch.device('cuda:{}'.format(dev) if torch.cuda.is_available() else 'cpu')#cuda:3
 
     average = args.average
-    LR = args.lr#1.5e-4 for 25
-    Gamma = args.gamma#0.8 for 25
+    LR = args.lr
+    Gamma = args.gamma
     step_size = args.step_size
     num_epochs = args.epoch
-    exp = args.exp#exp_other
+    exp = args.exp
 
     path = 'trainset'
     file_name = os.listdir('trainset')
     
-    noise_lvl = [25,50,75,100]
+    noise_lvl = noise_lvl = [int(x) for x in args.lvl.split(',')]
     mask_ratio = 0.3
     gray = False
 
