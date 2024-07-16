@@ -2,6 +2,8 @@
 
 This is the implementation of the model in the paper `Self2Self With Dropout: Learning Self-Supervised Denoising From Single Image`. The original implementation is in `Tensorflow`, and this is the `Pytorch` version, only setting up for denoising task.
 
+I also implement the DnCNN with similar self2self structure, and the performance is similar to the original model, which shows the robustness of the self2self structure and such self-supervised learning method.
+
 ```
 @InProceedings{Quan_2020_CVPR,
 author = {Quan, Yuhui and Chen, Mingqin and Pang, Tongyao and Ji, Hui},
