@@ -44,5 +44,5 @@ This is the recovered image of the Unet based model on "F16" image from 25 noise
 
 # How to execute
 
-Run the code `multidevice_unet.py" for original model, run the code "dncnn.py" for DnCNN with similar self2self structure.
+Run the code `multidevice_unet.py` for original model, run the code `dncnn.py` for DnCNN with similar self2self structure.
 Both of them have similar performance on "Set9" denoising task.
