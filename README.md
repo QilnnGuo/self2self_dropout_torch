@@ -24,7 +24,7 @@ These are the requirements for the code to run:
 
 # Performance
 
-This is the recovered image of the unet based model on "F16" image from 25 noise level.
+This is the recovered image of the Unet based model on "F16" image from 25 noise level.
 
 ## Original Image
 
