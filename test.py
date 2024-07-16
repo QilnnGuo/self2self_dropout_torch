@@ -1,12 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from MLE.utils import add_mask, read_image, RandomVerticalFlipWithState, RandomHorizontalFlipWithState, add_noise, calculate_psnr, calculate_ssim
-from MLE.model import PartialConvUnet
+from model.utils import add_mask, read_image, RandomVerticalFlipWithState, RandomHorizontalFlipWithState, add_noise, calculate_psnr, calculate_ssim
+from model.model import PartialConvUnet
 from torchvision import transforms
 from torchvision.utils import save_image
 import argparse
 import sys
+
 def train(image, path, noise_lvl, num_epochs, device, model, optimizer, scheduler, average=1):
     sys.stdout = open(f'{noise_lvl}_{device}.txt', 'w', buffering=1)
     print('noise level: {}'.format(noise_lvl))

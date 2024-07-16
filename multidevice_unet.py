@@ -2,28 +2,29 @@ import os
 from pathlib import Path
 import cv2
 import torch
-from torchvision import transforms
-import matplotlib.pyplot as plt
-import numpy as np
-from tqdm import tqdm
-import torch
+import torch.multiprocessing as mp
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import math
+from torchvision import transforms
 from torchvision.utils import save_image
 
-import torch.multiprocessing as mp
-
 import sys
-
-from model.utils import RandomVerticalFlipWithState, RandomHorizontalFlipWithState, read_image, calculate_psnr, calculate_ssim, add_noise, add_mask, average_masked_image
-import torch
-import torch.nn.functional as F
-from model.model import PartialConvUnet
+import math
 import signal
 import multiprocessing
 import argparse
+
+from model.utils import (
+    RandomVerticalFlipWithState,
+    RandomHorizontalFlipWithState,
+    read_image,
+    calculate_psnr,
+    calculate_ssim,
+    add_noise,
+    add_mask,
+)
+from model.model import PartialConvUnet
 
 def train_model(Gamma, step_size, path, file_name, model, optimizer, noise_lvl, mask_ratio, num_epochs, device='cuda:1', gray=False, exp = 'exp'):
     os.makedirs(f'Dropout/{exp}', exist_ok=True)
