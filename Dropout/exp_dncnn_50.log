@@ -1,0 +1,20 @@
+nohup: ignoring input
+------------------------------------------------------------
+learning rate: 0.0001
+gamma:2000 1
+Experiment: exp_dncnn
+device: cuda:1
+gray: False
+mask ratio: 0.3
+num epochs: 150000
+files: ['image_Peppers512rgb.png', 'kodim03.png', 'kodim12.png', 'kodim01.png', 'image_House256rgb.png', 'image_Baboon512rgb.png', 'image_F16_512rgb.png', 'kodim02.png', 'image_Lena512rgb.png']
+------------------------------------------------------------
+         noise level: 50
+------------------------------------------------------------
+[W CudaIPCTypes.cpp:16] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:16] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:16] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+[W CudaIPCTypes.cpp:16] Producer process has been terminated before all shared CUDA tensors released. See Note [Sharing CUDA tensors]
+Average PSNR: tensor(29.0154, device='cuda:1')
+Average SSIM: tensor(0.7830, device='cuda:1')
+------------------------------------------------------------
