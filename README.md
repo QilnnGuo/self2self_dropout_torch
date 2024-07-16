@@ -20,7 +20,27 @@ These are the requirements for the code to run:
 * torchvision==0.17.2+cu121
 * cv2 4.9.0(Opencv for python)
 
+# Performance
+
+This is the recovered image of the unet based model on "F16" image from 25 noise level.
+
+## Original Image
+
+![oF16](./image_F16_512rgb.png)
+
+## Noisy Image
+
+![nF16](./25_noisy_image_image_F16_512rgb.png)
+
+## Recovered Image
+
+![rF16](./25_best_image_image_F16_512rgb.png)
+
+
+
+
 
 # How to execute
 
-Run the code `multidevice.py`
+Run the code `multidevice_unet.py" for original model, run the code "dncnn.py" for DnCNN with similar self2self structure.
+Both of them have similar performance on "Set9" denoising task.
