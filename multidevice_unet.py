@@ -95,9 +95,9 @@ def train_model(Gamma, step_size, path, file_name, model, optimizer, noise_lvl, 
         with torch.no_grad():
             if i % 200 == 0:
                 if flip_state_1:
-                    output= output.flip(1)
+                    output= output.flip(2)
                 if flip_state_2:
-                    output = output.flip(2)
+                    output = output.flip(3)
                 print('epoch: {}, loss: {}, psnr: {:.4f}, ssim: {}'.format(i, loss.item(), calculate_psnr(image, output), calculate_ssim(image, output)))   
 
             if (i+1)%1000 == 0:
@@ -109,9 +109,9 @@ def train_model(Gamma, step_size, path, file_name, model, optimizer, noise_lvl, 
                     mask_image, mask = add_mask(aug_image, mask_ratio, device=device)
                     output_pred = model(mask_image, mask)
                     if flip_state_1:
-                        output_pred= output_pred.flip(1)
+                        output_pred= output_pred.flip(2)
                     if flip_state_2:
-                        output_pred = output_pred.flip(2)
+                        output_pred = output_pred.flip(3)
                     avg += output_pred
                     
                 avg /= T

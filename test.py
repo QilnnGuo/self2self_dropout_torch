@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.utils import add_mask, read_image, RandomVerticalFlipWithState, RandomHorizontalFlipWithState, add_noise, calculate_psnr, calculate_ssim
+from model.Bayes.utils import add_mask, read_image, RandomVerticalFlipWithState, RandomHorizontalFlipWithState, add_noise, calculate_psnr, calculate_ssim
 from model.model import PartialConvUnet
 from torchvision import transforms
 from torchvision.utils import save_image
@@ -47,9 +47,9 @@ def train(image, path, noise_lvl, num_epochs, device, model, optimizer, schedule
         with torch.no_grad():
             if (i+1) % 100 == 0:
                 if flip_state_1:
-                    output= output.flip(1)
+                    output= output.flip(2)
                 if flip_state_2:
-                    output = output.flip(2)
+                    output = output.flip(3)
                 print('epoch: {}, loss: {}, psnr: {:.4f}, ssim: {}'.format(i, loss.item(), calculate_psnr(image, output), calculate_ssim(image, output)))   
             
             if i%500 == 0:
@@ -61,9 +61,9 @@ def train(image, path, noise_lvl, num_epochs, device, model, optimizer, schedule
                     mask_image, mask = add_mask(aug_image, mask_ratio, device=device)
                     output_pred = model(mask_image,mask)
                     if flip_state_1:
-                        output_pred= output_pred.flip(1)
+                        output_pred= output_pred.flip(2)
                     if flip_state_2:
-                        output_pred = output_pred.flip(2)
+                        output_pred = output_pred.flip(3)
                     avg += output_pred/T
 
                 if calculate_psnr(image, avg) > best_psnr:
