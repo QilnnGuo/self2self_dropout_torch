@@ -101,7 +101,7 @@ class RandomVerticalFlipWithState():
     def __call__(self, img):
         if torch.rand(1) < self.probability:
             self.flipped = True
-            return img.flip(1)
+            return img.flip(2)
         self.flipped = False
         return img
 
@@ -113,6 +113,6 @@ class RandomHorizontalFlipWithState():
     def __call__(self, img):
         if torch.rand(1) < self.probability:
             self.flipped = True
-            return img.flip(2)
+            return img.flip(3)
         self.flipped = False
         return img
