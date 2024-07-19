@@ -15,7 +15,7 @@ from torchvision.utils import save_image
 from model.utils import add_mask, read_image, RandomVerticalFlipWithState, RandomHorizontalFlipWithState, add_noise, calculate_psnr, calculate_ssim
 from model.model import DnCNN
 
-def train_model(Gamma, step_size, path, file_name, model, optimizer, criterion, noise_lvl, mask_ratio, num_epochs, device='cuda:1', gray=False, exp = 'exp'):
+def train_model(path, file_name, model, optimizer, noise_lvl, mask_ratio, num_epochs, device='cuda:1', gray=False, exp = 'exp'):
     os.makedirs(f'Dropout/{exp}', exist_ok=True)
     sys.stdout = open(f'Dropout/{exp}/{noise_lvl}_{file_name[:-4]}.txt', 'w', buffering=1)
     psnr = []
@@ -62,8 +62,6 @@ def train_model(Gamma, step_size, path, file_name, model, optimizer, criterion, 
     best_psnr = 0
     save_epoch = 0
     best_image = None
-    #of no use
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=Gamma)
    
     for i in range(num_epochs):
         model.train()
@@ -75,15 +73,10 @@ def train_model(Gamma, step_size, path, file_name, model, optimizer, criterion, 
         output = model(mask_image)
         cnt_nonzero = torch.count_nonzero(1-mask)
         loss = torch.sum((output - aug_image)**2*(1-mask))/cnt_nonzero
-        save_image(mask_image, 'Dropout/{}/{}_mask_image_{}.png'.format(exp,noise_lvl,file_name[:-4]))
-        save_image(aug_image, 'Dropout/{}/{}_aug_image_{}.png'.format(exp,noise_lvl,file_name[:-4]))
-        save_image(output, 'Dropout/{}/{}_output_{}.png'.format(exp,noise_lvl,file_name[:-4]))
         loss.backward()
         optimizer.step()
-        scheduler.step()
         T = 100
         with torch.no_grad():
-
             if flip_state_1:
                 output= output.flip(2)
             if flip_state_2:
@@ -176,7 +169,7 @@ def train_model(Gamma, step_size, path, file_name, model, optimizer, criterion, 
 
     return best_psnr, calculate_ssim(image, best_image)
 
-def worker(Gamma, step_size, LR, path, file, noise, mask_ratio, num_epochs, device, gray, exp='exp'):
+def worker(LR, path, file, noise, mask_ratio, num_epochs, device, gray, exp='exp'):
     if gray:
         channels = 1
     else:
@@ -184,8 +177,7 @@ def worker(Gamma, step_size, LR, path, file, noise, mask_ratio, num_epochs, devi
     model = DnCNN(channels, num_of_layers=17, num_of_features=64, dropout_prob=0.3)
     model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=LR)
-    criterion = nn.MSELoss()#of no use
-    best_psnr, ssim = train_model(Gamma, step_size, path, file, model, optimizer, criterion, noise, mask_ratio, num_epochs, device, gray, exp)
+    best_psnr, ssim = train_model(path, file, model, optimizer, noise, mask_ratio, num_epochs, device, gray, exp)
     return best_psnr, ssim
 
 # Create a global Pool object
@@ -203,8 +195,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameterize learning rate, gamma, and step size.')
     parser.add_argument('--device', type=int, default=1, help='device')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
-    parser.add_argument('--gamma', type=float, default=1, help='Gamma')
-    parser.add_argument('--step_size', type=int, default=2000, help='Step size')
     parser.add_argument('--epoch', type=int, default=150000, help='num_epochs')
     parser.add_argument('--exp', type=str, default='exp_new', help='folder for experiment')
     parser.add_argument('--lvl', type=str, default='50,75,100', help='noise level')
@@ -214,8 +204,6 @@ if __name__ == '__main__':
     dev = args.device
     device = torch.device('cuda:{}'.format(dev) if torch.cuda.is_available() else 'cpu')#cuda:3
     LR = args.lr
-    Gamma = args.gamma
-    step_size = args.step_size
     num_epochs = args.epoch
     exp = args.exp
 
@@ -228,7 +216,6 @@ if __name__ == '__main__':
 
     print('------------------------------------------------------------')
     print('learning rate: {}'.format(LR))
-    print('gamma:{} {}'.format(step_size, Gamma))#step_size, Gamma
     print('Experiment: {}'.format(exp))
     print('device: {}'.format(device))
     print('gray: {}'.format(gray))
@@ -241,7 +228,7 @@ if __name__ == '__main__':
         print('         noise level: {}'.format(noise))
         print('------------------------------------------------------------')
         with multiprocessing.Pool(4) as pool:
-            results = pool.starmap(worker, [(Gamma, step_size, LR, path, file, noise, mask_ratio, num_epochs, device, gray, exp) for file in file_name])
+            results = pool.starmap(worker, [(LR, path, file, noise, mask_ratio, num_epochs, device, gray, exp) for file in file_name])
         average_psnr = sum([psnr for psnr, ssim in results])/len(results)
         average_ssim = sum([ssim for psnr, ssim in results])/len(results)
         print('Average PSNR:', average_psnr)
